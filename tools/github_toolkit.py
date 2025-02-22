@@ -4,7 +4,6 @@ import requests
 import base64
 import subprocess
 from pathlib import Path
-import asyncio
 
 def fetch_github_issue(owner: str, repository: str, issue_number: int) -> dict:
     """
@@ -100,17 +99,8 @@ def analyze_issue_async(owner, repository, issue_number, branch):
     title = issue.get("title", "").lower()
     body = issue.get("body", "").lower()
 
-    # Fetch repository files and find relevant ones
+    # Fetch repository file structure
     all_files = list_repository_files(owner, repository, branch)
-    # keywords = title.split() + body.split()
-    # relevant_files = find_relevant_files(all_files, keywords, owner, repository, branch)
-
-    # Fetch the content of relevant files
-    # code_snippets = {}
-    # for file_path in relevant_files:
-    #     pathstr: str = file_path
-    #     if pathstr.endswith(".py"):
-    #         code_snippets[file_path] = fetch_code_from_github(owner, repository, file_path)
 
     # Build the response
     response = {
@@ -122,15 +112,13 @@ def analyze_issue_async(owner, repository, issue_number, branch):
     return response
 
 
-def clone_repository(owner: str, repository: str, branch: str = "main") -> str:
+def clone_repository(owner: str, repository: str) -> str:
     """
     Klont ein Git-Repository basierend auf Owner und Repository-Name in das angegebene Zielverzeichnis.
     
     Args:
         owner (str): GitHub-Owner (z. B. Benutzername oder Organisation).
         repo (str): Name des GitHub-Repositorys.
-        branch (str): Branch, der geklont werden soll (Standard: "main").
-        destination (str): Zielverzeichnis für das Klonen.
         
     Returns:
         str: Pfad des geklonten Repositorys oder eine Fehlermeldung.
@@ -152,7 +140,7 @@ def clone_repository(owner: str, repository: str, branch: str = "main") -> str:
 
         # Git-Klon-Befehl ausführen
         subprocess.run(
-            ["git", "clone", "--branch", branch, repo_url, str(repo_path)],
+            ["git", "clone", repo_url, str(repo_path)],
             check=True,
         )
         return f"Repository erfolgreich geklont: {repo_path}"
@@ -177,7 +165,3 @@ def checkout_commit(repository: str, commit_hash: str):
         print(f"Successfully checked out to commit: {commit_hash}")
     except subprocess.CalledProcessError as e:
         print(f"Error during checkout: {e}")
-
-# Define the tool for the agent
-async def get_issue_analysis(owner: str, repository: str, issue_number: int, branch: str = "main") -> str:
-    return await analyze_issue(owner, repository, issue_number, branch)

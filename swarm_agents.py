@@ -3,12 +3,16 @@ import os
 from swarm import Swarm, Agent
 from swarm.repl import run_demo_loop
 from swarm_prompts import *
-from tools.file_toolkit import manipulate_file
+from tools.file_toolkit import extract_function, find_and_replace, list_files_in_repository, list_functions, modify_function, modify_function_args, modify_return_type, read_file, remove_function, write_file
 from tools.github_toolkit import analyze_issue, clone_repository, checkout_commit
 from tools.executor_toolkit import run_code_execution
 from openai import OpenAI
 from dotenv import load_dotenv
+import pyarrow.parquet as pq
 import lunary
+import re
+import random
+
 load_dotenv()
 
 openai_client=OpenAI()
@@ -60,23 +64,37 @@ file_agent = Agent(
     name="File",
     instructions=PROMPT_FILE_MANIPULATOR + "When all files are manipulated transfer to Triage and claim TERMINATE. NO USER INPUT NEEDED",
     model="gpt-4o-mini",
-    functions=[manipulate_file, transfer_to_triage]
+    functions=[write_file, modify_function, find_and_replace, read_file, list_files_in_repository, list_functions, extract_function, transfer_to_triage]
 )
 
 tester_agent = Agent(
     name= "Tester",
     instructions=CODE_PREP + "When execution was not sucessful. Transfer back to triage. When successfull terminate.",
     model="gpt-4o-mini",
-    functions=[manipulate_file, run_code_execution, transfer_to_triage]
+    functions=[write_file, run_code_execution, transfer_to_triage]
 )
 
-# usr_input = input("User: ")
-# response = client.run(
-#     agent=issue_analyzer_agent,
-#     messages=[{"role": "user", "content": f"Issue {usr_input}"}],
-#     stream=True
-# )
+table = pq.read_table('.\\swebench\\test-00000-of-00001.parquet')
 
-# print(response)
+data_dict = table.to_pydict()
+columns = data_dict.keys()
+rows = [{col: data_dict[col][i] for col in columns} for i in range(len(next(iter(data_dict.values()))))]
+
+random.seed(30)
+random.shuffle(rows)
+
+# Enter a number to get any row of SWE-Bench
+row = rows[42]
+repo = row["repo"]
+print(repo)
+issue = int(re.search(r'\d+', row["instance_id"]).group())
+print(issue)
+commit = row["base_commit"]
+issue_detail = row["problem_statement"]
+
+# print(response.messages[-1]["content"])
+
+# Paste the console Output to the Chat (Semi-Implement SWE...)
+print(f"{repo}/{issue} with base commit {commit} \n ISSUE Description:\n {issue_detail}".replace("\n", " "))
 
 run_demo_loop(client, issue_analyzer_agent, stream=True)
